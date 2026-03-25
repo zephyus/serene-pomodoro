@@ -25,12 +25,25 @@
 
 ---
 
-## 🚀 如何安裝與使用 (Windows)
+## 🚀 如何下載與安裝 (給一般使用者)
 
-你可以直接前往 [Releases](https://github.com/zephyus/serene-pomodoro/releases) (如有) 下載打包好的產物：
+你可以直接前往本專案的 **[Releases 頁面](https://github.com/zephyus/serene-pomodoro/releases)** 下載最新版的安裝檔，**完全不需要寫程式就能使用！**
 
-- **免安裝版**：執行 `Serene Pomodoro 1.0.0.exe` 即可使用。
-- **安裝版**：執行 `Serene Pomodoro Setup 1.0.0.exe`。
+### 🍎 Mac 用戶安裝指南
+1. 進入 Releases 頁面，找到並下載副檔名為 `.dmg` 的檔案（例如 `Serene-Pomodoro-1.0.0-mac.dmg`）。
+2. 雙擊打開下載的 `.dmg` 檔案，將「Serene Pomodoro」的番茄圖示 **拖曳** 到旁邊的 `Applications` (應用程式) 資料夾中。
+3. **⚠️ 首次開啟注意（非常重要）：**
+   因為這是一款免費且未付費給蘋果進行「官方數位簽章」的獨立軟體，Mac 預設會阻擋開啟並顯示「無法打開，因為它來自未識別的開發者」。
+   👉 **解決方法：** 請打開 Mac 的 **「系統設定」 > 「隱私權與安全性」**，往下滑找到這段警告，點擊旁邊的 **「強制打開 (Open Anyway)」** 即可順利使用！
+
+### 🪟 Windows 用戶安裝指南
+1. 進入 Releases 頁面，找到並下載副檔名為 `.exe` 的檔案。
+2. 這裡提供兩種版本，任選一種下載即可：
+   - **免安裝版** (`Serene Pomodoro 1.0.0.exe`)：放在桌面雙擊就能直接用，適合不想安裝軟體的人。
+   - **安裝版** (`Serene Pomodoro Setup 1.0.0.exe`)：雙擊執行後會自動安裝，並在你的開始選單和桌面建立永久的捷徑。
+3. **⚠️ 首次開啟注意：** 
+   有時候 Windows 內建的 Defender 也會跳出藍色畫面警告「Windows 已保護您的電腦」。
+   👉 **解決方法：** 點擊提示文字上的 **「其他資訊 (More info)」**，然後點擊 **「仍要執行 (Run anyway)」** 即可。
 
 ---
 
