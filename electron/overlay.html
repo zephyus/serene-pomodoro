@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Serene Pomodoro - Time's Up</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Noto Sans TC', 'Segoe UI', sans-serif;
+            cursor: default;
+            user-select: none;
+        }
+
+        /* Background gradient animation */
+        .overlay-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, 
+                #0f2027 0%, 
+                #203a43 30%, 
+                #2c5364 60%,
+                #0f2027 100%);
+            background-size: 400% 400%;
+            animation: gradientShift 8s ease infinite;
+            z-index: 1;
+        }
+
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Soft floating particles */
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .particle {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.06);
+            animation: float linear infinite;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(100vh) scale(0); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-10vh) scale(1); opacity: 0; }
+        }
+
+        /* Main content */
+        .content {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        /* Breathing circle */
+        .breathing-circle {
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.02) 70%, transparent 100%);
+            border: 2px solid rgba(255, 255, 255, 0.15);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transform: scale(1); /* Starting scale */
+            /* Will be controlled via JS for 4-7-8, or CSS for default */
+        }
+
+        .breathing-circle-inner {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%);
+            transform: scale(1);
+        }
+
+        /* Default 4s breathing for focus completion */
+        .mode-focus .breathing-circle {
+            animation: breathe 4s ease-in-out infinite;
+        }
+        .mode-focus .breathing-circle-inner {
+            animation: breathe 4s ease-in-out infinite reverse;
+        }
+
+        @keyframes breathe {
+            0%, 100% { transform: scale(1); opacity: 0.7; }
+            50% { transform: scale(1.15); opacity: 1; }
+        }
+
+        /* Message */
+        .message {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 1.8rem;
+            font-weight: 300;
+            letter-spacing: 0.2em;
+            text-align: center;
+            animation: fadeIn 1.5s ease-out;
+            margin-top: 1rem;
+        }
+
+        .sub-message {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 1rem;
+            font-weight: 300;
+            letter-spacing: 0.15em;
+            animation: fadeIn 2s ease-out;
+            height: 1.5rem;
+            transition: opacity 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            0% { opacity: 0; transform: translateY(20px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Dismiss button */
+        .dismiss-btn {
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.8s ease;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.8);
+            padding: 14px 48px;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 300;
+            letter-spacing: 0.15em;
+            cursor: pointer;
+            font-family: 'Noto Sans TC', 'Segoe UI', sans-serif;
+            margin-top: 1rem;
+        }
+
+        .dismiss-btn.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .dismiss-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.4);
+            transform: scale(1.03);
+            transition: all 0.3s ease;
+        }
+
+        .dismiss-btn:active {
+            transform: scale(0.97);
+        }
+    </style>
+</head>
+<body>
+    <div class="overlay-bg"></div>
+    <div class="particles" id="particles"></div>
+    <div class="content" id="content">
+        <div class="breathing-circle" id="circleOuter">
+            <div class="breathing-circle-inner" id="circleInner"></div>
+        </div>
+        <div class="message" id="message">時間到了</div>
+        <div class="sub-message" id="sub-message">深呼吸，放鬆一下...</div>
+        <button class="dismiss-btn" id="dismissBtn" onclick="dismissOverlay()">✕ 關閉</button>
+    </div>
+
+    <script>
+        // Generate soft floating particles
+        const particlesContainer = document.getElementById('particles');
+        for (let i = 0; i < 20; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            const size = Math.random() * 120 + 40;
+            particle.style.width = size + 'px';
+            particle.style.height = size + 'px';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.animationDuration = (Math.random() * 10 + 10) + 's';
+            particle.style.animationDelay = (Math.random() * 10) + 's';
+            particlesContainer.appendChild(particle);
+        }
+
+        // Read mode
+        const params = new URLSearchParams(window.location.search);
+        const mode = params.get('mode') || 'focus';
+
+        const contentDiv = document.getElementById('content');
+        contentDiv.classList.add(`mode-${mode}`);
+
+        const messageEl = document.getElementById('message');
+        const subMessageEl = document.getElementById('sub-message');
+        const circleOuter = document.getElementById('circleOuter');
+        const circleInner = document.getElementById('circleInner');
+
+        if (mode === 'focus') {
+            messageEl.textContent = '專注時間結束';
+            subMessageEl.textContent = '深呼吸，放鬆一下...';
+        } else {
+            // Short or Long Break -> 4-7-8 Breathing
+            messageEl.textContent = mode === 'shortBreak' ? '短休息結束' : '長休息結束';
+            
+            // 4-7-8 Logic
+            const runBreathingCycle = () => {
+                // 1. Inhale (4s)
+                subMessageEl.style.opacity = '0';
+                setTimeout(() => {
+                    subMessageEl.textContent = '吸氣... (4秒)';
+                    subMessageEl.style.opacity = '1';
+                }, 200);
+                
+                circleOuter.style.transition = 'transform 4s ease-in-out, opacity 4s ease-in-out';
+                circleOuter.style.transform = 'scale(1.3)';
+                circleOuter.style.opacity = '1';
+                
+                circleInner.style.transition = 'transform 4s ease-in-out';
+                circleInner.style.transform = 'scale(1.2)';
+
+                // 2. Hold (7s)
+                setTimeout(() => {
+                    subMessageEl.style.opacity = '0';
+                    setTimeout(() => {
+                        subMessageEl.textContent = '憋氣... (7秒)';
+                        subMessageEl.style.opacity = '1';
+                    }, 200);
+                    // Circle stays large
+                }, 4000);
+
+                // 3. Exhale (8s)
+                setTimeout(() => {
+                    subMessageEl.style.opacity = '0';
+                    setTimeout(() => {
+                        subMessageEl.textContent = '緩緩吐氣... (8秒)';
+                        subMessageEl.style.opacity = '1';
+                    }, 200);
+
+                    circleOuter.style.transition = 'transform 8s ease-in-out, opacity 8s ease-in-out';
+                    circleOuter.style.transform = 'scale(1)';
+                    circleOuter.style.opacity = '0.7';
+
+                    circleInner.style.transition = 'transform 8s ease-in-out';
+                    circleInner.style.transform = 'scale(1)';
+                }, 11000); // 4 + 7 = 11s
+            };
+
+            // Start first cycle immediately
+            runBreathingCycle();
+            // Repeat every 19 seconds (4+7+8)
+            setInterval(runBreathingCycle, 19000);
+        }
+
+        // Show dismiss button after 3 seconds
+        setTimeout(() => {
+            document.getElementById('dismissBtn').classList.add('visible');
+        }, 3000);
+
+        function dismissOverlay() {
+            if (window.overlayAPI && window.overlayAPI.closeOverlay) {
+                window.overlayAPI.closeOverlay();
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const btn = document.getElementById('dismissBtn');
+                if (btn.classList.contains('visible')) {
+                    dismissOverlay();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
