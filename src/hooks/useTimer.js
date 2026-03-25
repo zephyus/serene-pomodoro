@@ -1,22 +1,21 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { triggerNotification } from '../utils/notifications';
+const DURATIONS = {
+    focus: 25 * 60 * 1000,
+    shortBreak: 5 * 60 * 1000,
+    longBreak: 15 * 60 * 1000,
+};
 
 const useTimer = () => {
-    const [remainingMs, setRemainingMs] = useState(25 * 60 * 1000);
+    const [remainingMs, setRemainingMs] = useState(DURATIONS.focus);
     const [isActive, setIsActive] = useState(false);
     const [mode, setMode] = useState('focus'); // 'focus', 'shortBreak', 'longBreak'
 
     // Refs for accurate time tracking
     const startTimeRef = useRef(null);       // Date.now() when timer started/resumed
-    const remainingAtStartRef = useRef(25 * 60 * 1000); // ms remaining when started/resumed
+    const remainingAtStartRef = useRef(DURATIONS.focus); // ms remaining when started/resumed
     const intervalRef = useRef(null);
     const modeRef = useRef(mode);
-
-    const DURATIONS = {
-        focus: 25 * 60 * 1000,
-        shortBreak: 5 * 60 * 1000,
-        longBreak: 15 * 60 * 1000,
-    };
 
     // Keep modeRef in sync
     useEffect(() => {
@@ -63,7 +62,8 @@ const useTimer = () => {
                 clearInterval(intervalRef.current);
             }
         };
-    }, [isActive]); // Only depends on isActive, not on time values
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isActive]);
 
     const minutes = Math.floor(remainingMs / 60000);
     const seconds = Math.floor((remainingMs % 60000) / 1000);

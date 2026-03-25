@@ -30,6 +30,7 @@ function App() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadStats();
     window.addEventListener('zen-garden-updated', loadStats);
     return () => window.removeEventListener('zen-garden-updated', loadStats);
