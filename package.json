@@ -13,7 +13,8 @@
     "preview": "vite preview",
     "electron:dev": "concurrently \"cross-env NODE_ENV=development vite\" \"wait-on http://localhost:5173 && cross-env NODE_ENV=development electron .\"",
     "electron:build": "vite build && electron-builder",
-    "electron:build:win": "vite build && electron-builder --win"
+    "electron:build:win": "vite build && electron-builder --win",
+    "electron:build:mac": "vite build && electron-builder --mac"
   },
   "dependencies": {
     "react": "^19.2.0",
@@ -61,7 +62,11 @@
           ]
         }
       ],
-      "icon": "electron/icon.ico"
+      "icon": "electron/icon.png"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "electron/icon.png"
     },
     "nsis": {
       "oneClick": false,
