@@ -73,6 +73,43 @@
   align-items: center;
 }
 
+.break-quote {
+  position: absolute;
+  top: 70%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  width: 250px;
+  animation: fadeInBreak 1.5s ease-out forwards;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.quote-main {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 0.05em;
+  font-weight: 300;
+  text-transform: uppercase;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  text-align: center;
+}
+
+.quote-sub {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.4);
+  font-weight: 300;
+  letter-spacing: 0.08em;
+  font-style: italic;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+
+@keyframes fadeInBreak {
+  0% { opacity: 0; transform: translateY(5px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
 .time {
   font-size: 4.4rem;
   font-weight: 200; /* Extremely thin */

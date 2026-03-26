@@ -39,6 +39,12 @@ const Timer = ({ minutes, seconds, progress, mode, isActive }) => {
 
       <div className="timer-display">
         <div className="time">{formattedTime}</div>
+        {mode !== 'focus' && (
+          <div className="break-quote">
+            <div className="quote-main">Health & Loved Ones &gt;&gt;&gt;&gt; Mission & Flow</div>
+            <div className="quote-sub">Play the long game.</div>
+          </div>
+        )}
       </div>
     </div>
   );
