@@ -1,63 +1,53 @@
-import React, { useState } from 'react';
+import React from 'react';
 import './Settings.css';
 
-const Settings = ({ notificationType, onNotificationChange, onRequestPermission }) => {
-    const [isOpen, setIsOpen] = useState(false);
+const Settings = ({ settings, onUpdate }) => {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const { focusDuration, shortBreakDuration, longBreakDuration } = settings;
 
-    const handleNotificationChange = (e) => {
-        const value = e.target.value;
-        onNotificationChange(value);
+  return (
+    <div className="settings-container">
+      <button
+        className="settings-toggle"
+        onClick={() => setIsOpen(!isOpen)}
+        aria-label="設定"
+        title="設定"
+      >
+        ⚙️
+      </button>
 
-        // Request permission if Windows notification is selected
-        if (value === 'windows') {
-            onRequestPermission();
-        }
-    };
+      {isOpen && (
+        <div className="settings-panel">
+          <div className="settings-title">設定</div>
 
-    return (
-        <div className="settings-container">
-            <button
-                className="settings-toggle"
-                onClick={() => setIsOpen(!isOpen)}
-                aria-label="Settings"
-            >
-                ⚙️
-            </button>
+          <div className="setting-group">
+            <div className="setting-label">⏱ 計時時長（分鐘）</div>
+            {[
+              { key: 'focusDuration',      label: '🍅 專注',   value: focusDuration,      min: 5, max: 60 },
+              { key: 'shortBreakDuration', label: '🌿 短休息', value: shortBreakDuration, min: 1, max: 15 },
+              { key: 'longBreakDuration',  label: '🌙 長休息', value: longBreakDuration,  min: 5, max: 30 },
+            ].map(({ key, label, value, min, max }) => (
+              <div className="duration-row" key={key}>
+                <span className="duration-name">{label}</span>
+                <input
+                  type="range"
+                  className="duration-slider"
+                  min={min} max={max}
+                  value={value}
+                  onChange={e => onUpdate(key, Number(e.target.value))}
+                />
+                <span className="duration-value">{value}m</span>
+              </div>
+            ))}
+          </div>
 
-            {isOpen && (
-                <div className="settings-panel">
-                    <h3>Notification Settings</h3>
-
-                    <div className="setting-group">
-                        <label>Timer Complete Notification:</label>
-                        <select
-                            value={notificationType}
-                            onChange={handleNotificationChange}
-                            className="notification-select"
-                        >
-                            <option value="none">🔇 None</option>
-                            <option value="brief">🔔 Brief Sound</option>
-                            <option value="chime">🎵 Chime</option>
-                            <option value="windows">💬 Windows Notification + Sound</option>
-                        </select>
-                    </div>
-
-                    <div className="setting-info">
-                        <small>
-                            {notificationType === 'windows' &&
-                                '💡 Windows notifications require browser permission'}
-                            {notificationType === 'brief' &&
-                                '🔔 Plays a gentle notification sound'}
-                            {notificationType === 'chime' &&
-                                '🎵 Plays a longer chime sound'}
-                            {notificationType === 'none' &&
-                                '🔇 No notification when timer completes'}
-                        </small>
-                    </div>
-                </div>
-            )}
+          <div className="setting-info">
+            🌌 計時結束時會自動顯示全螢幕放鬆畫面
+          </div>
         </div>
-    );
+      )}
+    </div>
+  );
 };
 
 export default Settings;

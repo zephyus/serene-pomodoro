@@ -1,17 +1,44 @@
-/* Basic Reset */
-* {
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500&family=Noto+Sans+TC:wght@300;400&display=swap');
+
+/* ── Design Tokens ── */
+:root {
+  /* Mode colours */
+  --color-focus:      #4dd9e0;   /* aqua   */
+  --color-focus-glow: rgba(77, 217, 224, 0.45);
+  --color-break:      #f9c784;   /* amber  */
+  --color-break-glow: rgba(249, 199, 132, 0.45);
+  --color-long:       #b89af5;   /* violet */
+  --color-long-glow:  rgba(184, 154, 245, 0.45);
+
+  /* Glass */
+  --glass-bg:     rgba(10, 18, 28, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.13);
+  --glass-blur:   40px;
+
+  /* Text */
+  --text-primary:   rgba(255, 255, 255, 0.95);
+  --text-secondary: rgba(255, 255, 255, 0.55);
+  --text-tertiary:  rgba(255, 255, 255, 0.30);
+
+  /* Easing */
+  --ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+/* ── Reset ── */
+*, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
 body {
-  font-family: 'Quicksand', sans-serif;
+  font-family: 'Inter', 'Noto Sans TC', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: transparent; /* Transparent for iOS frameless */
-  color: #333;
-  overflow: hidden; /* Prevent scrolling if we want a fixed app feel */
+  background-color: transparent;
+  color: var(--text-primary);
+  overflow: hidden;
+  user-select: none;
 }
 
 #root {
@@ -21,3 +48,8 @@ body {
   justify-content: center;
   align-items: center;
 }
+
+/* ── Scrollbar (settings panel) ── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }

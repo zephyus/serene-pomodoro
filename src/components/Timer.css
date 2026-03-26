@@ -1,45 +1,95 @@
+/* ── Minimalist Timer Container ── */
 .timer-container {
-    position: relative;
-    width: 220px;
-    height: 220px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  position: relative;
+  width: 240px;
+  height: 240px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin: 0 auto;
 }
 
+/* ── SVG Thin Ring ── */
 .progress-ring {
-    position: absolute;
-    transform: rotate(-90deg);
+  position: absolute;
+  transform: rotate(-90deg);
+  overflow: visible;
 }
 
 .progress-ring-bg {
-    fill: none;
-    stroke: rgba(255, 255, 255, 0.08);
-    stroke-width: 6;
+  fill: none;
+  stroke: rgba(255,255,255,0.06);
+  stroke-width: 1.5; /* ultra thin */
+}
+
+.progress-ring-glow {
+  fill: none;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-dasharray: 691.5;
+  stroke-dashoffset: 691.5;
+  transition: stroke-dashoffset 0.5s linear, stroke 1.5s ease;
+  opacity: 0.15;
+  filter: blur(2px);
 }
 
 .progress-ring-circle {
-    fill: none;
-    stroke: rgba(255, 255, 255, 0.85);
-    stroke-width: 6;
-    stroke-linecap: round;
-    /* Circumference for 220px with some padding is ~ 640 depending on radius. 
-       Usually the SVG <circle> provides r attribute. Let's assume r=100.
-       2 * pi * 100 = 628 */
-    stroke-dasharray: 628;
-    stroke-dashoffset: 628;
-    transition: stroke-dashoffset 1s linear;
+  fill: none;
+  stroke-width: 1.5; /* ultra thin */
+  stroke-linecap: round;
+  stroke-dasharray: 691.5;
+  stroke-dashoffset: 691.5;
+  transition: stroke-dashoffset 0.5s linear, stroke 1.5s ease;
 }
 
+/* Base colors matching the forest atmosphere vibes:
+   Focus: Cool Dawn (Teal/Silver)
+   Short: Warm Dusk (Peach/Amber)
+   Long : Night Sky (Lavender/Silver) */
+[data-mode="focus"]      .progress-ring-circle,
+[data-mode="focus"]      .progress-ring-glow    { stroke: rgba(180, 240, 240, 0.9); }
+[data-mode="shortBreak"] .progress-ring-circle,
+[data-mode="shortBreak"] .progress-ring-glow    { stroke: rgba(255, 210, 160, 0.9); }
+[data-mode="longBreak"]  .progress-ring-circle,
+[data-mode="longBreak"]  .progress-ring-glow    { stroke: rgba(210, 190, 255, 0.9); }
+
+/* Breathe glow when active */
+[data-active="true"] .progress-ring-glow {
+  animation: glowPulse 4s ease-in-out infinite;
+}
+
+@keyframes glowPulse {
+  0%, 100% { opacity: 0.15; filter: blur(2px); }
+  50%       { opacity: 0.40; filter: blur(5px); }
+}
+
+/* ── Ultra-Thin Typeface ── */
 .timer-display {
-    z-index: 10;
-    text-align: center;
+  z-index: 10;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .time {
-    font-size: 3.2rem;
-    font-weight: 300;
-    color: rgba(255, 255, 255, 0.95);
-    letter-spacing: 0.05em;
-    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  font-size: 4.4rem;
+  font-weight: 200; /* Extremely thin */
+  font-family: inherit;
+  color: rgba(255, 255, 255, 0.95);
+  letter-spacing: 0.05em;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 4px 24px rgba(0,0,0,0.4);
+  transition: opacity 0.5s ease;
+}
+
+/* Focus breathing text */
+[data-active="true"] .time {
+  animation: timePulse 4s ease-in-out infinite;
+}
+
+@keyframes timePulse {
+  0%, 100% { transform: scale(1); text-shadow: 0 4px 24px rgba(0,0,0,0.4); }
+  50%       { transform: scale(1.02); text-shadow: 0 8px 32px rgba(0,0,0,0.5); }
 }
