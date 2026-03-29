@@ -12,6 +12,8 @@ const useTimer = (customDurations) => {
     const [mode, setMode] = useState('focus');
     const [isActive, setIsActive] = useState(false);
     const [remainingMs, setRemainingMs] = useState(() => getDurations(customDurations).focus);
+    const [isTransitioning, setIsTransitioning] = useState(false);
+    const [cycleCount, setCycleCount] = useState(0); // completed focus sessions
 
     // Refs for accurate time tracking
     const startTimeRef = useRef(null);
@@ -19,6 +21,8 @@ const useTimer = (customDurations) => {
     const intervalRef = useRef(null);
     const modeRef = useRef(mode);
     const durationsRef = useRef(getDurations(customDurations));
+    const transitionTimeoutRef = useRef(null);
+    const cycleCountRef = useRef(0);
     
     // We use a separate ref to track the CURRENT remainingMs so effects can access it reliably
     const remRef = useRef(remainingMs);
@@ -28,6 +32,18 @@ const useTimer = (customDurations) => {
 
     // Keep mode ref in sync
     useEffect(() => { modeRef.current = mode; }, [mode]);
+    // Keep cycleCount ref in sync
+    useEffect(() => { cycleCountRef.current = cycleCount; }, [cycleCount]);
+
+    // Determine next mode based on current mode and cycle count
+    const computeNextMode = useCallback((currentMode, currentCycleCount) => {
+        if (currentMode === 'focus') {
+            // After every 4th focus session, take a long break
+            return (currentCycleCount + 1) % 4 === 0 ? 'longBreak' : 'shortBreak';
+        }
+        // After any break, go back to focus
+        return 'focus';
+    }, []);
 
     // Handle Setting Profile Duration Updates
     useEffect(() => {
@@ -54,6 +70,31 @@ const useTimer = (customDurations) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [customDurations?.focusDuration, customDurations?.shortBreakDuration, customDurations?.longBreakDuration]);
 
+    // Auto-transition: switch mode and auto-start after a brief pause
+    const autoTransition = useCallback((fromMode) => {
+        setIsTransitioning(true);
+
+        // Clear any existing transition timeout
+        if (transitionTimeoutRef.current) {
+            clearTimeout(transitionTimeoutRef.current);
+        }
+
+        transitionTimeoutRef.current = setTimeout(() => {
+            const currentCycle = cycleCountRef.current;
+            const nextMode = computeNextMode(fromMode, currentCycle);
+
+            // If we just finished a focus session, increment the cycle count
+            if (fromMode === 'focus') {
+                setCycleCount(prev => prev + 1);
+            }
+
+            setMode(nextMode);
+            setRemainingMs(durationsRef.current[nextMode]);
+            setIsTransitioning(false);
+            setIsActive(true); // Auto-start the next timer
+        }, 3000); // 3-second transition buffer
+    }, [computeNextMode]);
+
     // Core timer loop — real-clock based to avoid drift
     useEffect(() => {
         if (isActive) {
@@ -79,6 +120,9 @@ const useTimer = (customDurations) => {
                     }
 
                     triggerNotification(modeRef.current);
+
+                    // Auto-transition to next mode
+                    autoTransition(modeRef.current);
                 } else {
                     setRemainingMs(newRemaining);
                 }
@@ -91,6 +135,15 @@ const useTimer = (customDurations) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isActive]);
 
+    // Cleanup transition timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (transitionTimeoutRef.current) {
+                clearTimeout(transitionTimeoutRef.current);
+            }
+        };
+    }, []);
+
     const minutes = Math.floor(remainingMs / 60000);
     const seconds = Math.floor((remainingMs % 60000) / 1000);
 
@@ -98,20 +151,50 @@ const useTimer = (customDurations) => {
     // Clamp progress between 0 and 100 for safety under heavy rendering
     const progress = Math.min(100, Math.max(0, ((totalDuration - remainingMs) / totalDuration) * 100));
 
-    const startTimer  = useCallback(() => setIsActive(true), []);
-    const pauseTimer  = useCallback(() => setIsActive(false), []);
+    const startTimer  = useCallback(() => {
+        // Cancel any ongoing transition if user manually starts
+        if (transitionTimeoutRef.current) {
+            clearTimeout(transitionTimeoutRef.current);
+            setIsTransitioning(false);
+        }
+        setIsActive(true);
+    }, []);
+
+    const pauseTimer  = useCallback(() => {
+        // Cancel any ongoing transition if user pauses
+        if (transitionTimeoutRef.current) {
+            clearTimeout(transitionTimeoutRef.current);
+            setIsTransitioning(false);
+        }
+        setIsActive(false);
+    }, []);
+
     const resetTimer  = useCallback(() => {
+        // Cancel any ongoing transition
+        if (transitionTimeoutRef.current) {
+            clearTimeout(transitionTimeoutRef.current);
+            setIsTransitioning(false);
+        }
         setIsActive(false);
         setRemainingMs(durationsRef.current[mode]);
     }, [mode]);
 
     const changeMode = useCallback((newMode) => {
+        // Cancel any ongoing transition
+        if (transitionTimeoutRef.current) {
+            clearTimeout(transitionTimeoutRef.current);
+            setIsTransitioning(false);
+        }
         setMode(newMode);
         setIsActive(false);
         setRemainingMs(durationsRef.current[newMode]);
     }, []);
 
-    return { minutes, seconds, isActive, mode, progress, startTimer, pauseTimer, resetTimer, changeMode };
+    return {
+        minutes, seconds, isActive, mode, progress,
+        startTimer, pauseTimer, resetTimer, changeMode,
+        isTransitioning, cycleCount,
+    };
 };
 
 export default useTimer;

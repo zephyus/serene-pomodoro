@@ -18,12 +18,19 @@ const AMBIENT_LABELS = {
   cafe:   '☕',
 };
 
+const TRANSITION_MESSAGES = {
+  focus:      { text: '即將開始專注...', icon: '🍅' },
+  shortBreak: { text: '做得好！即將進入休息...', icon: '🌿' },
+  longBreak:  { text: '太棒了！進入長休息...', icon: '🌙' },
+};
+
 function App() {
   const { settings, updateSetting } = useSettings();
 
   const {
     minutes, seconds, isActive, mode, progress,
     startTimer, pauseTimer, resetTimer, changeMode,
+    isTransitioning, cycleCount,
   } = useTimer(settings);
 
   const [todayFocusCount, setTodayFocusCount] = useState(0);
@@ -48,6 +55,14 @@ function App() {
     if (window.electronAPI?.hideWindow) window.electronAPI.hideWindow();
   };
 
+  // Determine what mode we're transitioning TO
+  const getNextMode = () => {
+    if (mode === 'focus') {
+      return (cycleCount + 1) % 4 === 0 ? 'longBreak' : 'shortBreak';
+    }
+    return 'focus';
+  };
+
   // Convert focus count to minimalist dots (groups of 4)
   const renderDots = () => {
     // Show total slots rounded up to nearest 4, min 4
@@ -60,6 +75,9 @@ function App() {
       />
     ));
   };
+
+  const nextMode = getNextMode();
+  const transitionMsg = TRANSITION_MESSAGES[nextMode];
 
   return (
     <div className="app" data-mode={mode}>
@@ -79,6 +97,21 @@ function App() {
 
       {/* ── Ambient Audio ── */}
       <AmbientPlayer sound={settings.ambientSound} />
+
+      {/* ── Transition Overlay ── */}
+      {isTransitioning && (
+        <div className="transition-overlay">
+          <div className="transition-content">
+            <div className="transition-icon">{transitionMsg.icon}</div>
+            <div className="transition-text">{transitionMsg.text}</div>
+            <div className="transition-dots">
+              <span className="t-dot" />
+              <span className="t-dot" />
+              <span className="t-dot" />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Minimalist Content Layer ── */}
       <div className="app-content">
@@ -119,6 +152,8 @@ function App() {
           onReset={resetTimer}
           mode={mode}
           onModeChange={changeMode}
+          cycleCount={cycleCount}
+          isTransitioning={isTransitioning}
         />
 
         {/* Ambient Tools */}

@@ -7,7 +7,10 @@ const MODE_CONFIG = {
   longBreak:  { label: '長 休 息', mode: 'longBreak' },
 };
 
-const Controls = ({ isActive, onStart, onPause, onReset, mode, onModeChange }) => {
+const Controls = ({ isActive, onStart, onPause, onReset, mode, onModeChange, cycleCount = 0, isTransitioning = false }) => {
+  // Current cycle position within the 4-cycle set (1-based)
+  const cyclePosition = (cycleCount % 4) + 1;
+
   return (
     <div className="controls-container" data-mode={mode}>
       {/* ── Text-based Mode Selection ── */}
@@ -18,6 +21,7 @@ const Controls = ({ isActive, onStart, onPause, onReset, mode, onModeChange }) =
               className={`mode-btn${mode === m ? ' active' : ''}`}
               data-mode={m}
               onClick={() => onModeChange(m)}
+              disabled={isTransitioning}
             >
               {label}
             </button>
@@ -26,10 +30,25 @@ const Controls = ({ isActive, onStart, onPause, onReset, mode, onModeChange }) =
         ))}
       </div>
 
+      {/* ── Cycle Counter ── */}
+      <div className="cycle-indicator">
+        {[1, 2, 3, 4].map(n => (
+          <span
+            key={n}
+            className={`cycle-dot ${n <= cyclePosition ? 'cycle-active' : ''} ${n === cyclePosition && mode === 'focus' ? 'cycle-current' : ''}`}
+          />
+        ))}
+        <span className="cycle-label">第 {cyclePosition}/4 輪</span>
+      </div>
+
       {/* ── Transparent Pill Action Buttons ── */}
       <div className="action-buttons" data-mode={mode}>
         {!isActive ? (
-          <button className="control-btn main-action-btn start-btn" onClick={onStart}>
+          <button
+            className="control-btn main-action-btn start-btn"
+            onClick={onStart}
+            disabled={isTransitioning}
+          >
             ▶ 開 始
           </button>
         ) : (
