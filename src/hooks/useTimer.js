@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { triggerNotification } from '../utils/notifications';
+import { triggerNotification, triggerEyeReminder } from '../utils/notifications';
 
 const useTimer = (customDurations) => {
     // Compute duration map from settings (convert minutes to ms)
@@ -15,6 +15,17 @@ const useTimer = (customDurations) => {
     const [isTransitioning, setIsTransitioning] = useState(false);
     const [cycleCount, setCycleCount] = useState(0); // completed focus sessions
 
+    // NEW: Focus-end prompt state.
+    // 'none' | 'prompting' | 'resting' | 'waiting'
+    const [focusEndState, setFocusEndState] = useState('none');
+
+    // 連續跳過休息次數 (漸進式提醒強度)
+    const [skipCount, setSkipCount] = useState(0);
+    const skipCountRef = useRef(0);
+
+    // 20-20-20 護眼提醒是否已在本輪觸發
+    const eyeReminderTriggeredRef = useRef(false);
+
     // Refs for accurate time tracking
     const startTimeRef = useRef(null);
     const remainingAtStartRef = useRef(remainingMs);
@@ -23,6 +34,7 @@ const useTimer = (customDurations) => {
     const durationsRef = useRef(getDurations(customDurations));
     const transitionTimeoutRef = useRef(null);
     const cycleCountRef = useRef(0);
+    const waitTimeoutRef = useRef(null);
     
     // We use a separate ref to track the CURRENT remainingMs so effects can access it reliably
     const remRef = useRef(remainingMs);
@@ -34,6 +46,8 @@ const useTimer = (customDurations) => {
     useEffect(() => { modeRef.current = mode; }, [mode]);
     // Keep cycleCount ref in sync
     useEffect(() => { cycleCountRef.current = cycleCount; }, [cycleCount]);
+    // Keep skipCount ref in sync
+    useEffect(() => { skipCountRef.current = skipCount; }, [skipCount]);
 
     // Determine next mode based on current mode and cycle count
     const computeNextMode = useCallback((currentMode, currentCycleCount) => {
@@ -71,6 +85,7 @@ const useTimer = (customDurations) => {
     }, [customDurations?.focusDuration, customDurations?.shortBreakDuration, customDurations?.longBreakDuration]);
 
     // Auto-transition: switch mode and auto-start after a brief pause
+    // Used for break→focus transitions (auto) and after rest overlay completes
     const autoTransition = useCallback((fromMode) => {
         setIsTransitioning(true);
 
@@ -110,7 +125,9 @@ const useTimer = (customDurations) => {
                     setRemainingMs(0);
                     setIsActive(false);
 
-                    if (modeRef.current === 'focus') {
+                    const currentMode = modeRef.current;
+
+                    if (currentMode === 'focus') {
                         const today = new Date().toISOString().split('T')[0];
                         const statsStr = localStorage.getItem('zen-garden-stats');
                         const stats = statsStr ? JSON.parse(statsStr) : {};
@@ -119,12 +136,33 @@ const useTimer = (customDurations) => {
                         window.dispatchEvent(new Event('zen-garden-updated'));
                     }
 
-                    triggerNotification(modeRef.current);
+                    triggerNotification(currentMode, skipCountRef.current);
 
-                    // Auto-transition to next mode
-                    autoTransition(modeRef.current);
+                    // Reset eye reminder flag for next focus cycle
+                    eyeReminderTriggeredRef.current = false;
+
+                    // ** NEW LOGIC **
+                    // If focus just ended → show prompt instead of auto-transitioning
+                    if (currentMode === 'focus') {
+                        setFocusEndState('prompting-external'); // Wait for overlay.html action
+                    } else {
+                        // Break ended → auto-transition back to focus as before
+                        autoTransition(currentMode);
+                    }
                 } else {
                     setRemainingMs(newRemaining);
+
+                    // 20-20-20 護眼提醒：在專注模式剩餘 5 分鐘時觸發 (第 20 分鐘)
+                    const currentMode = modeRef.current;
+                    if (currentMode === 'focus' && !eyeReminderTriggeredRef.current) {
+                        const fiveMinMs = 5 * 60 * 1000;
+                        const totalFocus = durationsRef.current.focus;
+                        // 只在 focus >= 20 分鐘時觸發，在剩餘 5 分鐘時
+                        if (totalFocus >= 20 * 60 * 1000 && newRemaining <= fiveMinMs) {
+                            eyeReminderTriggeredRef.current = true;
+                            triggerEyeReminder();
+                        }
+                    }
                 }
             }, 250);
         }
@@ -135,13 +173,53 @@ const useTimer = (customDurations) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isActive]);
 
-    // Cleanup transition timeout on unmount
+    // Cleanup timeouts on unmount
     useEffect(() => {
         return () => {
             if (transitionTimeoutRef.current) {
                 clearTimeout(transitionTimeoutRef.current);
             }
+            if (waitTimeoutRef.current) {
+                clearTimeout(waitTimeoutRef.current);
+            }
         };
+    }, []);
+
+    // ── Focus-end prompt handlers ──
+
+    // User chose "開始休息" → show rest overlay
+    const handleChooseRest = useCallback(() => {
+        setFocusEndState('resting');
+        setSkipCount(0); // 選擇休息時重置跳過計數
+    }, []);
+
+    // User chose "再等一分鐘" → dismiss, re-prompt after 60s
+    const handleChooseWait = useCallback(() => {
+        setFocusEndState('waiting');
+        setSkipCount(prev => prev + 1); // 記錄跳過次數
+
+        // Clear any existing wait timeout
+        if (waitTimeoutRef.current) {
+            clearTimeout(waitTimeoutRef.current);
+        }
+
+        waitTimeoutRef.current = setTimeout(() => {
+            setFocusEndState('prompting');
+        }, 60 * 1000); // 1 minute
+    }, []);
+
+    // Rest overlay completed (10s elapsed) → transition to break
+    const handleRestComplete = useCallback(() => {
+        setFocusEndState('none');
+        autoTransition('focus');
+    }, [autoTransition]);
+
+    // Dismiss focus-end flow (for manual controls)
+    const dismissFocusEnd = useCallback(() => {
+        setFocusEndState('none');
+        if (waitTimeoutRef.current) {
+            clearTimeout(waitTimeoutRef.current);
+        }
     }, []);
 
     const minutes = Math.floor(remainingMs / 60000);
@@ -157,8 +235,10 @@ const useTimer = (customDurations) => {
             clearTimeout(transitionTimeoutRef.current);
             setIsTransitioning(false);
         }
+        // Cancel any focus-end prompt/wait
+        dismissFocusEnd();
         setIsActive(true);
-    }, []);
+    }, [dismissFocusEnd]);
 
     const pauseTimer  = useCallback(() => {
         // Cancel any ongoing transition if user pauses
@@ -175,9 +255,11 @@ const useTimer = (customDurations) => {
             clearTimeout(transitionTimeoutRef.current);
             setIsTransitioning(false);
         }
+        // Cancel any focus-end prompt/wait
+        dismissFocusEnd();
         setIsActive(false);
         setRemainingMs(durationsRef.current[mode]);
-    }, [mode]);
+    }, [mode, dismissFocusEnd]);
 
     const changeMode = useCallback((newMode) => {
         // Cancel any ongoing transition
@@ -185,15 +267,24 @@ const useTimer = (customDurations) => {
             clearTimeout(transitionTimeoutRef.current);
             setIsTransitioning(false);
         }
+        // Cancel any focus-end prompt/wait
+        dismissFocusEnd();
         setMode(newMode);
         setIsActive(false);
         setRemainingMs(durationsRef.current[newMode]);
-    }, []);
+    }, [dismissFocusEnd]);
 
     return {
         minutes, seconds, isActive, mode, progress,
         startTimer, pauseTimer, resetTimer, changeMode,
         isTransitioning, cycleCount,
+        // Focus-end prompt state & handlers
+        focusEndState,
+        handleChooseRest,
+        handleChooseWait,
+        handleRestComplete,
+        // 漸進式提醒
+        skipCount,
     };
 };
 

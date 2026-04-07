@@ -1,0 +1,16 @@
+.time-traveler {
+  position: absolute;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 2; /* Sits just above the dark minimalist gradient mask */
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 2s ease-in-out;
+  /* Add subtle scaling for breathing depth effect */
+  transform: scale(1.05);
+}
+
+[data-mode="focus"] .time-traveler {
+  opacity: 1; /* Only visible in focus mode */
+}

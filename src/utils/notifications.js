@@ -4,10 +4,9 @@
 const isElectron = window.electronAPI?.isElectron || false;
 
 // Combined notification handler - triggers overlay in Electron, silent browser notification otherwise
-export const triggerNotification = (mode) => {
+export const triggerNotification = (mode, skipCount = 0) => {
     if (isElectron && window.electronAPI?.showOverlay) {
-        // Show fullscreen always-on-top overlay
-        window.electronAPI.showOverlay(mode);
+        window.electronAPI.showOverlay(mode, skipCount);
         return;
     }
 
@@ -26,6 +25,13 @@ export const triggerNotification = (mode) => {
             requireInteraction: true,
             silent: true
         });
+    }
+};
+
+// 20-20-20 護眼提醒
+export const triggerEyeReminder = () => {
+    if (isElectron && window.electronAPI?.showEyeReminder) {
+        window.electronAPI.showEyeReminder();
     }
 };
 

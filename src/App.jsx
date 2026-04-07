@@ -3,6 +3,8 @@ import Timer from './components/Timer';
 import Controls from './components/Controls';
 import Settings from './components/Settings';
 import AmbientPlayer from './components/AmbientPlayer';
+import FocusEndPrompt from './components/FocusEndPrompt';
+import RestOverlay from './components/RestOverlay';
 import useTimer from './hooks/useTimer';
 import useSettings from './hooks/useSettings';
 import './App.css';
@@ -10,6 +12,7 @@ import './App.css';
 import bgFocus  from './assets/bg-focus.png';
 import bgBreak  from './assets/bg-break.png';
 import bgLong   from './assets/bg-overlay.png'; // Night/Cosmos for Long Break
+import TimeTraveler from './components/TimeTraveler'; // Time Traveler Dynamic Effect
 
 const AMBIENT_LABELS = {
   none:   '🔇',
@@ -31,6 +34,11 @@ function App() {
     minutes, seconds, isActive, mode, progress,
     startTimer, pauseTimer, resetTimer, changeMode,
     isTransitioning, cycleCount,
+    // NEW: focus-end prompt state & handlers
+    focusEndState,
+    handleChooseRest,
+    handleChooseWait,
+    handleRestComplete,
   } = useTimer(settings);
 
   const [todayFocusCount, setTodayFocusCount] = useState(0);
@@ -48,8 +56,20 @@ function App() {
   useEffect(() => {
     loadStats();
     window.addEventListener('zen-garden-updated', loadStats);
+    
+    // Listen for overlay actions if in Electron
+    if (window.electronAPI?.onOverlayAction) {
+      window.electronAPI.onOverlayAction((action) => {
+        if (action === 'rest-complete') {
+          handleRestComplete();
+        } else if (action === 'wait-one-minute') {
+          handleChooseWait();
+        }
+      });
+    }
+
     return () => window.removeEventListener('zen-garden-updated', loadStats);
-  }, []);
+  }, [handleRestComplete, handleChooseWait]);
 
   const handleHideToTray = () => {
     if (window.electronAPI?.hideWindow) window.electronAPI.hideWindow();
@@ -95,6 +115,9 @@ function App() {
         style={{ backgroundImage: `url(${bgLong})` }}
       />
 
+      {/* ── Time Traveler Dynamic Effect ── */}
+      <TimeTraveler active={mode === 'focus' && isActive} />
+
       {/* ── Ambient Audio ── */}
       <AmbientPlayer sound={settings.ambientSound} />
 
@@ -113,13 +136,30 @@ function App() {
         </div>
       )}
 
+      {/* ── Focus End Prompt (Web Fallback) ── */}
+      {!window.electronAPI?.isElectron && (
+        <FocusEndPrompt
+          visible={focusEndState === 'prompting'}
+          onRest={handleChooseRest}
+          onWait={handleChooseWait}
+        />
+      )}
+
+      {/* ── Rest Overlay (Web Fallback) ── */}
+      {!window.electronAPI?.isElectron && (
+        <RestOverlay
+          visible={focusEndState === 'resting'}
+          onComplete={handleRestComplete}
+        />
+      )}
+
       {/* ── Minimalist Content Layer ── */}
       <div className="app-content">
         
         {/* Title Bar */}
         <div className="title-bar">
           <Settings settings={settings} onUpdate={updateSetting} />
-          <p className="app-title">{settings.taskName || 'SERENE POMODORO'}</p>
+          <p className="app-title">{settings.taskName || 'SERENE GUARDIAN'}</p>
           {window.electronAPI?.isElectron ? (
             <button
               className="tray-hide-btn"

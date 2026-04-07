@@ -1,7 +1,7 @@
 {
-  "name": "serene-pomodoro",
-  "version": "1.0.3",
-  "description": "A serene and tranquil Pomodoro timer application for focused work",
+  "name": "serene-guardian",
+  "version": "2.0.0",
+  "description": "A serene health guardian that breaks prolonged sitting and protects your eyes with the 20-20-20 rule",
   "author": "Your Name",
   "private": true,
   "repository": "zephyus/serene-pomodoro",
@@ -38,8 +38,8 @@
     "wait-on": "^9.0.3"
   },
   "build": {
-    "appId": "com.serenepomodoro.app",
-    "productName": "Serene Pomodoro",
+    "appId": "com.sereneguardian.app",
+    "productName": "Serene Guardian",
     "directories": {
       "output": "release"
     },
@@ -74,7 +74,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Serene Pomodoro"
+      "shortcutName": "Serene Guardian"
     }
   }
 }

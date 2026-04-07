@@ -6,6 +6,7 @@ const isDev = process.env.NODE_ENV === 'development';
 
 let mainWindow;
 let overlayWindow = null;
+let eyeReminderWindow = null;
 let tray = null;
 
 function createWindow() {
@@ -22,7 +23,7 @@ function createWindow() {
             contextIsolation: true,
         },
         autoHideMenuBar: true,
-        title: 'Serene Pomodoro',
+        title: 'Serene Guardian',
         // icon: path.join(__dirname, 'icon.png'),
     });
 
@@ -56,7 +57,7 @@ function createTray() {
     }
 
     if (tray) {
-        tray.setToolTip('Serene Pomodoro (靜謐番茄鐘)');
+        tray.setToolTip('Serene Guardian (靜謐守護者)');
         
         const contextMenu = Menu.buildFromTemplate([
             {
@@ -85,7 +86,7 @@ function createTray() {
 }
 
 // 建立全螢幕置頂覆蓋視窗
-function createOverlayWindow(mode) {
+function createOverlayWindow(mode, skipCount = 0) {
     if (overlayWindow) {
         overlayWindow.close();
         overlayWindow = null;
@@ -120,7 +121,7 @@ function createOverlayWindow(mode) {
 
     const overlayPath = path.join(__dirname, 'overlay.html');
     overlayWindow.loadFile(overlayPath, {
-        query: { mode: mode || 'focus' }
+        query: { mode: mode || 'focus', skipCount: String(skipCount || 0) }
     });
 
     overlayWindow.on('closed', () => {
@@ -128,8 +129,68 @@ function createOverlayWindow(mode) {
     });
 }
 
+// 建立 20-20-20 護眼提醒小視窗 (角落浮動)
+function createEyeReminder() {
+    if (eyeReminderWindow) {
+        eyeReminderWindow.close();
+        eyeReminderWindow = null;
+    }
+
+    const primaryDisplay = screen.getPrimaryDisplay();
+    const { width, height } = primaryDisplay.workAreaSize;
+
+    const winWidth = 360;
+    const winHeight = 200;
+    const margin = 20;
+
+    eyeReminderWindow = new BrowserWindow({
+        width: winWidth,
+        height: winHeight,
+        x: width - winWidth - margin,
+        y: height - winHeight - margin,
+        frame: false,
+        transparent: true,
+        alwaysOnTop: true,
+        skipTaskbar: true,
+        resizable: false,
+        movable: false,
+        focusable: false,
+        hasShadow: false,
+        webPreferences: {
+            preload: path.join(__dirname, 'eye-reminder-preload.cjs'),
+            nodeIntegration: false,
+            contextIsolation: true,
+        },
+    });
+
+    eyeReminderWindow.setAlwaysOnTop(true, 'floating');
+
+    const reminderPath = path.join(__dirname, 'eye-reminder.html');
+    eyeReminderWindow.loadFile(reminderPath);
+
+    eyeReminderWindow.on('closed', () => {
+        eyeReminderWindow = null;
+    });
+
+    // Auto-close after 25 seconds (20s countdown + buffer)
+    setTimeout(() => {
+        if (eyeReminderWindow) {
+            eyeReminderWindow.close();
+            eyeReminderWindow = null;
+        }
+    }, 25000);
+}
+
 // 當 Electron 完成初始化時
 app.whenReady().then(() => {
+    // 設定開機自動啟動
+    if (!isDev) {
+        app.setLoginItemSettings({
+            openAtLogin: true,
+            path: app.getPath('exe'),
+        });
+    }
+
     createWindow();
     createTray();
 
@@ -151,14 +212,31 @@ app.on('window-all-closed', () => {
 
 // -- IPC 處理區 --
 
-ipcMain.handle('show-overlay', (event, { mode }) => {
-    createOverlayWindow(mode);
+ipcMain.handle('show-overlay', (event, { mode, skipCount }) => {
+    createOverlayWindow(mode, skipCount);
+});
+
+ipcMain.handle('show-eye-reminder', () => {
+    createEyeReminder();
+});
+
+ipcMain.handle('close-eye-reminder', () => {
+    if (eyeReminderWindow) {
+        eyeReminderWindow.close();
+        eyeReminderWindow = null;
+    }
 });
 
 ipcMain.handle('close-overlay', () => {
     if (overlayWindow) {
         overlayWindow.close();
         overlayWindow = null;
+    }
+});
+
+ipcMain.handle('overlay-action', (event, action) => {
+    if (mainWindow) {
+        mainWindow.webContents.send('overlay-action', action);
     }
 });
 

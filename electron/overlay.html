@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Serene Pomodoro - 時間到了</title>
+    <title>Serene Guardian - 時間到了</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400&family=Noto+Sans+TC:wght@200;300;400&display=swap');
 
@@ -203,6 +203,97 @@
             transform: scale(1.02);
             box-shadow: 0 6px 24px rgba(0,0,0,0.4);
         }
+
+        /* ── Focus Actions (Rest vs Wait) ── */
+        .focus-actions {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            margin-top: 30px;
+            z-index: 20;
+            animation: fadeUp 1.5s ease-out both;
+        }
+
+        .focus-btn {
+            border: none;
+            font-family: inherit;
+            font-size: 0.9rem;
+            font-weight: 300;
+            letter-spacing: 0.2em;
+            cursor: pointer;
+            padding: 14px 48px;
+            border-radius: 40px;
+            transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+            min-width: 240px;
+            backdrop-filter: blur(8px);
+        }
+
+        .focus-btn:active { transform: scale(0.96); }
+
+        .focus-btn.rest-btn {
+            background: rgba(180, 240, 240, 0.15);
+            color: rgba(180, 240, 240, 0.95);
+            border: 1px solid rgba(180, 240, 240, 0.35);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2), 0 0 20px rgba(180, 240, 240, 0.1);
+        }
+        .focus-btn.rest-btn:hover {
+            background: rgba(180, 240, 240, 0.25);
+            border-color: rgba(180, 240, 240, 0.6);
+            transform: translateY(-1px);
+        }
+
+        .focus-btn.wait-btn {
+            background: rgba(255, 255, 255, 0.05);
+            color: rgba(255, 255, 255, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        .focus-btn.wait-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.35);
+            color: rgba(255, 255, 255, 0.85);
+            transform: translateY(-1px);
+        }
+
+        /* ── Stretch Tip ── */
+        .stretch-tip {
+            color: rgba(255, 255, 255, 0.75);
+            font-size: 0.95rem;
+            font-weight: 300;
+            letter-spacing: 0.12em;
+            text-align: center;
+            padding: 0 32px;
+            margin-top: 20px;
+            animation: fadeUp 1.5s ease-out both;
+            line-height: 1.6;
+        }
+
+        /* ── Urgency / Escalation Styles ── */
+        .urgency-warning .message {
+            color: rgba(255, 200, 140, 0.95);
+        }
+        .urgency-warning .ring-line {
+            stroke: rgba(255, 180, 100, 0.9) !important;
+        }
+        .urgency-warning .ring-glow {
+            stroke: rgba(255, 150, 70, 0.6) !important;
+        }
+
+        .urgency-critical .message {
+            color: rgba(255, 150, 130, 0.95);
+        }
+        .urgency-critical .ring-line {
+            stroke: rgba(255, 120, 100, 0.9) !important;
+        }
+        .urgency-critical .ring-glow {
+            stroke: rgba(255, 100, 80, 0.6) !important;
+        }
+        .urgency-critical .cinematic-window {
+            box-shadow:
+                0 40px 100px rgba(0,0,0,0.8),
+                0 0 0 1px rgba(255, 120, 100, 0.15) inset,
+                0 0 60px rgba(255, 100, 80, 0.1);
+        }
     </style>
 </head>
 <body>
@@ -224,6 +315,13 @@
 
         <div class="message" id="message">時間到了</div>
         <div class="sub-message" id="sub-message">深呼吸，放鬆一下...</div>
+
+        <div class="focus-actions" id="focusActions" style="display: none;">
+            <button class="focus-btn rest-btn" id="restBtn">🌿 開始休息</button>
+            <button class="focus-btn wait-btn" id="waitBtn">⏳ 再等一分鐘</button>
+        </div>
+
+        <div class="stretch-tip" id="stretchTip" style="display: none;"></div>
     </div>
 
     <button class="dismiss-btn" id="dismissBtn" onclick="dismissOverlay()">繼續</button>
@@ -231,7 +329,39 @@
     <script>
         const params = new URLSearchParams(window.location.search);
         const mode = params.get('mode') || 'focus';
+        const skipCount = parseInt(params.get('skipCount') || '0', 10);
         document.getElementById('content').classList.add(`mode-${mode}`);
+
+        // Apply urgency classes based on skip count
+        if (skipCount >= 3) {
+            document.body.classList.add('urgency-critical');
+        } else if (skipCount >= 1) {
+            document.body.classList.add('urgency-warning');
+        }
+
+        // ── Stretch & Health Tips ──
+        const stretchTips = [
+            '🧍 站起來，伸展你的雙腿',
+            '🔄 慢慢轉動你的脖子，釋放肩頸壓力',
+            '💧 喝一口水吧，保持身體水分',
+            '👁️ 閉上眼睛 10 秒，讓它們休息',
+            '🙆 雙手高舉過頭，向上伸展',
+            '🫁 深呼吸三次，感受空氣進入身體',
+            '🪟 走到窗邊，看看遠方的風景',
+            '🤸 站起來活動一下脊椎，扭轉身體',
+            '🦶 踮起腳尖再放下，重複 5 次',
+            '🧘 閉眼，感受自己的呼吸 10 秒',
+            '💪 聳肩到耳朵旁，維持 3 秒再放鬆',
+            '🚶 在房間走一小圈，讓血液流動',
+        ];
+
+        // Urgency messages based on skip count
+        const urgencyMessages = {
+            0: { msg: '專注結束', sub: '做得好，你值得休息一下' },
+            1: { msg: '該休息了', sub: '你已經延後了一次，身體需要你' },
+            2: { msg: '請休息', sub: '連續久坐對健康有害，現在就站起來' },
+            3: { msg: '你必須休息', sub: '你的身體正在向你求救' },
+        };
 
         // Setup Image Sources based on mode
         const bgMap = {
@@ -347,22 +477,7 @@
             line.style.strokeDashoffset = offset;
         }
 
-        if (mode === 'focus') {
-            msgEl.textContent = '專注結束';
-            subEl.textContent = '好好休息一下';
-            setRingProgress(1);
-            glow.style.transition = 'none';
-            line.style.transition = 'none';
-            // Tint ring slightly warmer for focus completion
-            line.style.stroke = 'rgba(255, 230, 200, 0.9)';
-            glow.style.stroke = 'rgba(255, 200, 150, 0.6)';
-        } else {
-            msgEl.textContent = mode === 'shortBreak' ? '短休息結束' : '長休息結束';
-            
-            // Tint ring cooler for break end
-            line.style.stroke = 'rgba(210, 230, 255, 0.9)';
-            glow.style.stroke = 'rgba(180, 200, 255, 0.6)';
-
+        function startBreatheCycle(durationMs = 19000, initialDelay = false) {
             const breathe = () => {
                 subEl.style.opacity = '0';
                 setTimeout(() => { subEl.textContent = '吸氣...'; subEl.style.opacity = '1'; }, 200);
@@ -393,13 +508,96 @@
                 }, 11000);
             };
 
-            breathe();
-            setInterval(breathe, 19000);
+            if (initialDelay) {
+                setTimeout(breathe, 100);
+            } else {
+                breathe();
+            }
+            return setInterval(breathe, durationMs);
         }
 
-        setTimeout(() => {
-            document.getElementById('dismissBtn').classList.add('visible');
-        }, 3000);
+        if (mode === 'focus') {
+            // Get urgency level message
+            const urgency = urgencyMessages[Math.min(skipCount, 3)];
+            msgEl.textContent = urgency.msg;
+            subEl.textContent = urgency.sub;
+            setRingProgress(1);
+            glow.style.transition = 'none';
+            line.style.transition = 'none';
+            line.style.stroke = 'rgba(255, 230, 200, 0.9)';
+            glow.style.stroke = 'rgba(255, 200, 150, 0.6)';
+
+            const focusActions = document.getElementById('focusActions');
+            const restBtn = document.getElementById('restBtn');
+            const waitBtn = document.getElementById('waitBtn');
+            focusActions.style.display = 'flex';
+
+            // Hide wait button if skip count >= 3 (forced rest)
+            if (skipCount >= 3) {
+                waitBtn.style.display = 'none';
+            }
+
+            let countdown = 3;
+            restBtn.textContent = `🌿 開始休息 (${countdown}s)`;
+
+            const startRestTakeover = () => {
+                focusActions.style.display = 'none';
+                msgEl.textContent = '休息一下';
+
+                // Show random stretch tip
+                const stretchTip = document.getElementById('stretchTip');
+                const tip = stretchTips[Math.floor(Math.random() * stretchTips.length)];
+                stretchTip.textContent = tip;
+                stretchTip.style.display = 'block';
+                subEl.textContent = '';
+
+                // After 3 seconds, start breathing cycle
+                setTimeout(() => {
+                    stretchTip.style.display = 'none';
+                    // Color transition to cool
+                    line.style.stroke = 'rgba(210, 230, 255, 0.9)';
+                    glow.style.stroke = 'rgba(180, 200, 255, 0.6)';
+                    startBreatheCycle(19000, true);
+                }, 3000);
+
+                setTimeout(() => {
+                    if (window.overlayAPI?.sendAction) window.overlayAPI.sendAction('rest-complete');
+                    dismissOverlay();
+                }, 10000); // 10 second forced rest
+            };
+
+            const focusInterval = setInterval(() => {
+                countdown--;
+                if (countdown <= 0) {
+                    clearInterval(focusInterval);
+                    startRestTakeover();
+                } else {
+                    restBtn.textContent = `🌿 開始休息 (${countdown}s)`;
+                }
+            }, 1000);
+
+            restBtn.onclick = () => {
+                clearInterval(focusInterval);
+                startRestTakeover();
+            };
+
+            waitBtn.onclick = () => {
+                clearInterval(focusInterval);
+                if (window.overlayAPI?.sendAction) window.overlayAPI.sendAction('wait-one-minute');
+                dismissOverlay();
+            };
+
+        } else {
+            msgEl.textContent = mode === 'shortBreak' ? '短休息結束' : '長休息結束';
+            line.style.stroke = 'rgba(210, 230, 255, 0.9)';
+            glow.style.stroke = 'rgba(180, 200, 255, 0.6)';
+
+            startBreatheCycle();
+
+            setTimeout(() => {
+                document.getElementById('dismissBtn').classList.add('visible');
+            }, 3000);
+        }
 
         function dismissOverlay() {
             if (window.overlayAPI?.closeOverlay) window.overlayAPI.closeOverlay();
