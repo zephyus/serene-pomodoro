@@ -144,10 +144,10 @@ const useTimer = (customDurations) => {
                     // ** NEW LOGIC **
                     // If focus just ended → show prompt instead of auto-transitioning
                     if (currentMode === 'focus') {
-                        setFocusEndState('prompting-external'); // Wait for overlay.html action
+                        setFocusEndState('prompting'); // Show rest prompt
                     } else {
-                        // Break ended → auto-transition back to focus as before
-                        autoTransition(currentMode);
+                        // Break ended → wait for user to manually start next focus
+                        setFocusEndState('break-done');
                     }
                 } else {
                     setRemainingMs(newRemaining);
@@ -205,6 +205,10 @@ const useTimer = (customDurations) => {
 
         waitTimeoutRef.current = setTimeout(() => {
             setFocusEndState('prompting');
+            // Also re-trigger Electron overlay if in Electron
+            if (window.electronAPI?.showOverlay) {
+                window.electronAPI.showOverlay();
+            }
         }, 60 * 1000); // 1 minute
     }, []);
 
@@ -213,6 +217,15 @@ const useTimer = (customDurations) => {
         setFocusEndState('none');
         autoTransition('focus');
     }, [autoTransition]);
+
+    // User manually starts next focus after break is done
+    const handleBreakDoneStart = useCallback(() => {
+        setFocusEndState('none');
+        const nextMode = 'focus';
+        setMode(nextMode);
+        setRemainingMs(durationsRef.current[nextMode]);
+        setIsActive(true);
+    }, []);
 
     // Dismiss focus-end flow (for manual controls)
     const dismissFocusEnd = useCallback(() => {
@@ -283,6 +296,7 @@ const useTimer = (customDurations) => {
         handleChooseRest,
         handleChooseWait,
         handleRestComplete,
+        handleBreakDoneStart,
         // 漸進式提醒
         skipCount,
     };

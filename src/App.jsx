@@ -39,6 +39,7 @@ function App() {
     handleChooseRest,
     handleChooseWait,
     handleRestComplete,
+    handleBreakDoneStart,
   } = useTimer(settings);
 
   const [todayFocusCount, setTodayFocusCount] = useState(0);
@@ -151,6 +152,20 @@ function App() {
           visible={focusEndState === 'resting'}
           onComplete={handleRestComplete}
         />
+      )}
+
+      {/* ── Break Done Overlay ── */}
+      {focusEndState === 'break-done' && (
+        <div className="break-done-overlay">
+          <div className="break-done-content">
+            <div className="break-done-icon">☀️</div>
+            <h2 className="break-done-title">休息結束！</h2>
+            <p className="break-done-text">準備好繼續專注了嗎？</p>
+            <button className="break-done-btn" onClick={handleBreakDoneStart}>
+              開始下一段專注
+            </button>
+          </div>
+        </div>
       )}
 
       {/* ── Minimalist Content Layer ── */}
