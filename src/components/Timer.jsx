@@ -90,7 +90,7 @@ const Timer = ({ minutes, seconds, progress, mode, isActive, totalDuration, rema
       rafRef.current = requestAnimationFrame(tick);
     };
 
-    rafRef.current = requestAnimationFrame(performance.now());
+    rafRef.current = requestAnimationFrame(tick);
 
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
