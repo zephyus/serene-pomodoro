@@ -62,7 +62,7 @@ function createTray() {
         const contextMenu = Menu.buildFromTemplate([
             {
                 label: '顯示主視窗',
-                click: () => mainWindow.show()
+                click: () => { if (mainWindow) mainWindow.show(); }
             },
             { type: 'separator' },
             {

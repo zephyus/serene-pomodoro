@@ -22,7 +22,6 @@ const FocusEndPrompt = ({ visible, onRest, onWait }) => {
         setCountdown(prev => {
           if (prev <= 1) {
             clearInterval(intervalRef.current);
-            onRest();
             return 0;
           }
           return prev - 1;
@@ -35,6 +34,13 @@ const FocusEndPrompt = ({ visible, onRest, onWait }) => {
 
     return () => clearInterval(intervalRef.current);
   }, [visible]);
+
+  // Trigger auto-rest when countdown reaches 0 (outside of setState updater)
+  useEffect(() => {
+    if (visible && countdown === 0) {
+      onRest();
+    }
+  }, [visible, countdown, onRest]);
 
   if (!visible) return null;
 

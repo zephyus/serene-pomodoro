@@ -48,6 +48,14 @@ export default function TimeTraveler({ active }) {
       targetSpeed = active ? 4.5 : 0.15;
       currentSpeed += (targetSpeed - currentSpeed) * 0.03;
 
+      // If speed is effectively zero and we're not active, stop rendering
+      // to save GPU/CPU during breaks (#10)
+      if (!active && currentSpeed < 0.2) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Don't schedule next frame — effect cleanup will handle restart
+        return;
+      }
+
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
       const cx = canvas.width / 2;

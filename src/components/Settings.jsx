@@ -1,12 +1,34 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import './Settings.css';
 
 const Settings = ({ settings, onUpdate }) => {
   const [isOpen, setIsOpen] = React.useState(false);
+  const panelRef = useRef(null);
   const { focusDuration, shortBreakDuration, longBreakDuration } = settings;
 
+  // Click-outside-to-close (#6)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleClickOutside = (e) => {
+      if (panelRef.current && !panelRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+
+    // Delay to avoid catching the toggle click itself
+    const timer = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+    }, 0);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
   return (
-    <div className="settings-container">
+    <div className="settings-container" ref={panelRef}>
       <button
         className="settings-toggle"
         onClick={() => setIsOpen(!isOpen)}
@@ -19,6 +41,19 @@ const Settings = ({ settings, onUpdate }) => {
       {isOpen && (
         <div className="settings-panel">
           <div className="settings-title">設定</div>
+
+          {/* Task Name (#7) */}
+          <div className="setting-group">
+            <div className="setting-label">📝 任務名稱</div>
+            <input
+              type="text"
+              className="task-name-input"
+              value={settings.taskName || ''}
+              onChange={e => onUpdate('taskName', e.target.value)}
+              placeholder="SERENE GUARDIAN"
+              maxLength={30}
+            />
+          </div>
 
           <div className="setting-group">
             <div className="setting-label">⏱ 計時時長（分鐘）</div>

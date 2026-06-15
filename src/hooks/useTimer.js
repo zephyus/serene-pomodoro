@@ -1,22 +1,40 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { triggerNotification, triggerEyeReminder } from '../utils/notifications';
 
-const useTimer = (customDurations) => {
-    // Compute duration map from settings (convert minutes to ms)
-    const getDurations = (d) => ({
-        focus:      (d?.focusDuration      ?? 25) * 60 * 1000,
-        shortBreak: (d?.shortBreakDuration ??  5) * 60 * 1000,
-        longBreak:  (d?.longBreakDuration  ?? 15) * 60 * 1000,
-    });
+// Pure function — module level to avoid recreation on each render
+const getDurations = (d) => ({
+    focus:      (d?.focusDuration      ?? 25) * 60 * 1000,
+    shortBreak: (d?.shortBreakDuration ??  5) * 60 * 1000,
+    longBreak:  (d?.longBreakDuration  ?? 15) * 60 * 1000,
+});
 
+// Get today's date in local timezone (YYYY-MM-DD)
+const getLocalToday = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+// Prune stats older than 90 days to prevent localStorage bloat
+const pruneOldStats = (stats) => {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 90);
+    const cutoffStr = cutoff.toISOString().split('T')[0];
+    const pruned = {};
+    for (const [date, count] of Object.entries(stats)) {
+        if (date >= cutoffStr) pruned[date] = count;
+    }
+    return pruned;
+};
+
+const useTimer = (customDurations) => {
     const [mode, setMode] = useState('focus');
     const [isActive, setIsActive] = useState(false);
     const [remainingMs, setRemainingMs] = useState(() => getDurations(customDurations).focus);
     const [isTransitioning, setIsTransitioning] = useState(false);
     const [cycleCount, setCycleCount] = useState(0); // completed focus sessions
 
-    // NEW: Focus-end prompt state.
-    // 'none' | 'prompting' | 'resting' | 'waiting'
+    // Focus-end prompt state.
+    // 'none' | 'prompting' | 'resting' | 'waiting' | 'break-done'
     const [focusEndState, setFocusEndState] = useState('none');
 
     // 連續跳過休息次數 (漸進式提醒強度)
@@ -128,10 +146,11 @@ const useTimer = (customDurations) => {
                     const currentMode = modeRef.current;
 
                     if (currentMode === 'focus') {
-                        const today = new Date().toISOString().split('T')[0];
+                        const today = getLocalToday();
                         const statsStr = localStorage.getItem('zen-garden-stats');
-                        const stats = statsStr ? JSON.parse(statsStr) : {};
+                        let stats = statsStr ? JSON.parse(statsStr) : {};
                         stats[today] = (stats[today] || 0) + 1;
+                        stats = pruneOldStats(stats);
                         localStorage.setItem('zen-garden-stats', JSON.stringify(stats));
                         window.dispatchEvent(new Event('zen-garden-updated'));
                     }
@@ -171,6 +190,43 @@ const useTimer = (customDurations) => {
             if (intervalRef.current) clearInterval(intervalRef.current);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isActive]);
+
+    // Sleep-jump guard: detect when system wakes from sleep during active timing.
+    // If a large time gap occurred (>30s) while the page was hidden, pause instead
+    // of letting the timer auto-complete with a huge jump.
+    useEffect(() => {
+        let lastTickTime = Date.now();
+        const SLEEP_THRESHOLD_MS = 30 * 1000; // 30 seconds
+
+        const onVisibilityChange = () => {
+            if (document.visibilityState === 'visible' && isActive) {
+                const now = Date.now();
+                const gap = now - lastTickTime;
+                if (gap > SLEEP_THRESHOLD_MS) {
+                    // Large time gap detected — likely woke from sleep
+                    // Pause the timer so the user can decide what to do
+                    setIsActive(false);
+                    // Recalculate remaining time based on what was left before sleep
+                    const elapsed = now - startTimeRef.current;
+                    const newRemaining = remainingAtStartRef.current - elapsed;
+                    if (newRemaining > 0) {
+                        setRemainingMs(newRemaining);
+                    }
+                    // Don't auto-complete; let the user resume or reset
+                }
+            }
+            lastTickTime = Date.now();
+        };
+
+        // Also keep lastTickTime updated periodically while visible
+        const tickInterval = setInterval(() => { lastTickTime = Date.now(); }, 5000);
+
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        return () => {
+            document.removeEventListener('visibilitychange', onVisibilityChange);
+            clearInterval(tickInterval);
+        };
     }, [isActive]);
 
     // Cleanup timeouts on unmount

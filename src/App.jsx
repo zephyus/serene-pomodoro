@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Timer from './components/Timer';
 import Controls from './components/Controls';
 import Settings from './components/Settings';
@@ -7,6 +7,7 @@ import FocusEndPrompt from './components/FocusEndPrompt';
 import RestOverlay from './components/RestOverlay';
 import useTimer from './hooks/useTimer';
 import useSettings from './hooks/useSettings';
+import { requestNotificationPermission } from './utils/notifications';
 import './App.css';
 
 import bgFocus  from './assets/bg-focus.png';
@@ -34,7 +35,7 @@ function App() {
     minutes, seconds, isActive, mode, progress,
     startTimer, pauseTimer, resetTimer, changeMode,
     isTransitioning, cycleCount,
-    // NEW: focus-end prompt state & handlers
+    // Focus-end prompt state & handlers
     focusEndState,
     handleChooseRest,
     handleChooseWait,
@@ -45,32 +46,54 @@ function App() {
   const [todayFocusCount, setTodayFocusCount] = useState(0);
 
   /* ── Stats ── */
-  const loadStats = () => {
-    const today = new Date().toISOString().split('T')[0];
+  const loadStats = useCallback(() => {
+    // Use local date to match useTimer's getLocalToday()
+    const d = new Date();
+    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     const statsStr = localStorage.getItem('zen-garden-stats');
     if (statsStr) {
       const stats = JSON.parse(statsStr);
       setTodayFocusCount(stats[today] || 0);
+    } else {
+      setTodayFocusCount(0);
     }
-  };
+  }, []);
 
+  // Stats listener + notification permission
   useEffect(() => {
     loadStats();
     window.addEventListener('zen-garden-updated', loadStats);
-    
-    // Listen for overlay actions if in Electron
-    if (window.electronAPI?.onOverlayAction) {
-      window.electronAPI.onOverlayAction((action) => {
-        if (action === 'rest-complete') {
-          handleRestComplete();
-        } else if (action === 'wait-one-minute') {
-          handleChooseWait();
-        }
-      });
+
+    // Request notification permission (browser fallback)
+    if (!window.electronAPI?.isElectron) {
+      requestNotificationPermission();
     }
 
     return () => window.removeEventListener('zen-garden-updated', loadStats);
-  }, [handleRestComplete, handleChooseWait]);
+  }, [loadStats]);
+
+  // Electron overlay IPC listener (separate effect to avoid leak)
+  // Use refs so the listener closure always sees the latest handlers
+  const handleRestCompleteRef = useRef(handleRestComplete);
+  const handleChooseWaitRef = useRef(handleChooseWait);
+  useEffect(() => { handleRestCompleteRef.current = handleRestComplete; }, [handleRestComplete]);
+  useEffect(() => { handleChooseWaitRef.current = handleChooseWait; }, [handleChooseWait]);
+
+  useEffect(() => {
+    if (!window.electronAPI?.onOverlayAction) return;
+
+    const handler = (action) => {
+      if (action === 'rest-complete') {
+        handleRestCompleteRef.current();
+      } else if (action === 'wait-one-minute') {
+        handleChooseWaitRef.current();
+      }
+    };
+
+    window.electronAPI.onOverlayAction(handler);
+    // Note: register once, uses refs to always call latest handler
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleHideToTray = () => {
     if (window.electronAPI?.hideWindow) window.electronAPI.hideWindow();
