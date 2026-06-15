@@ -291,7 +291,7 @@ const useTimer = (customDurations) => {
             setFocusEndState('prompting');
             // Also re-trigger Electron overlay if in Electron
             if (window.electronAPI?.showOverlay) {
-                window.electronAPI.showOverlay();
+                window.electronAPI.showOverlay(modeRef.current, skipCountRef.current);
             }
         }, 60 * 1000); // 1 minute
     }, []);

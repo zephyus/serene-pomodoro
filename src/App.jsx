@@ -91,7 +91,13 @@ function App() {
     };
 
     window.electronAPI.onOverlayAction(handler);
-    // Note: register once, uses refs to always call latest handler
+    
+    // Cleanup listener on unmount
+    return () => {
+      if (window.electronAPI.removeOverlayAction) {
+        window.electronAPI.removeOverlayAction();
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
