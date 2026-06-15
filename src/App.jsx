@@ -7,6 +7,7 @@ import FocusEndPrompt from './components/FocusEndPrompt';
 import RestOverlay from './components/RestOverlay';
 import useTimer from './hooks/useTimer';
 import useSettings from './hooks/useSettings';
+import useStats from './hooks/useStats';
 import { requestNotificationPermission } from './utils/notifications';
 import './App.css';
 
@@ -35,6 +36,7 @@ function App() {
     minutes, seconds, isActive, mode, progress,
     startTimer, pauseTimer, resetTimer, changeMode,
     isTransitioning, cycleCount,
+    totalDuration, remainingMs,
     // Focus-end prompt state & handlers
     focusEndState,
     handleChooseRest,
@@ -43,34 +45,19 @@ function App() {
     handleBreakDoneStart,
   } = useTimer(settings);
 
-  const [todayFocusCount, setTodayFocusCount] = useState(0);
-
-  /* ── Stats ── */
-  const loadStats = useCallback(() => {
-    // Use local date to match useTimer's getLocalToday()
-    const d = new Date();
-    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    const statsStr = localStorage.getItem('zen-garden-stats');
-    if (statsStr) {
-      const stats = JSON.parse(statsStr);
-      setTodayFocusCount(stats[today] || 0);
-    } else {
-      setTodayFocusCount(0);
-    }
-  }, []);
+  const { todayFocusCount, recordFocusSession } = useStats();
 
   // Stats listener + notification permission
   useEffect(() => {
-    loadStats();
-    window.addEventListener('zen-garden-updated', loadStats);
+    window.addEventListener('focus-session-completed', recordFocusSession);
 
     // Request notification permission (browser fallback)
     if (!window.electronAPI?.isElectron) {
       requestNotificationPermission();
     }
 
-    return () => window.removeEventListener('zen-garden-updated', loadStats);
-  }, [loadStats]);
+    return () => window.removeEventListener('focus-session-completed', recordFocusSession);
+  }, [recordFocusSession]);
 
   // Electron overlay IPC listener (separate effect to avoid leak)
   // Use refs so the listener closure always sees the latest handlers
@@ -225,6 +212,8 @@ function App() {
             progress={progress}
             mode={mode}
             isActive={isActive}
+            totalDuration={totalDuration}
+            remainingMs={remainingMs}
           />
         </div>
 

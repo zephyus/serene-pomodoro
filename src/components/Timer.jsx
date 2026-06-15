@@ -40,9 +40,62 @@ const getRandomQuote = (excludeIndex) => {
   return idx;
 };
 
-const Timer = ({ minutes, seconds, progress, mode, isActive }) => {
+const Timer = ({ minutes, seconds, progress, mode, isActive, totalDuration, remainingMs }) => {
   const formattedTime = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  const offset = CIRC - (CIRC * progress) / 100;
+  
+  // Refs for rAF loop
+  const ringGlowRef = useRef(null);
+  const ringCircleRef = useRef(null);
+  const rafRef = useRef(null);
+  const displayRemainingRef = useRef(remainingMs);
+  const authoritativeRemainingRef = useRef(remainingMs);
+
+  // Always keep authoritative remaining up to date
+  useEffect(() => {
+    authoritativeRemainingRef.current = remainingMs;
+  }, [remainingMs]);
+
+  // ProMotion 60/120fps rendering loop
+  useEffect(() => {
+    let lastTime = performance.now();
+
+    const tick = (now) => {
+      const dt = now - lastTime;
+      lastTime = now;
+
+      if (isActive) {
+        // Linearly decrease visual time
+        displayRemainingRef.current = Math.max(0, displayRemainingRef.current - dt);
+
+        // Soft-sync with authoritative React state (useTimer)
+        const diff = displayRemainingRef.current - authoritativeRemainingRef.current;
+        if (Math.abs(diff) > 500) {
+          // Snap if huge jump (e.g. wake from sleep or slider dragged)
+          displayRemainingRef.current = authoritativeRemainingRef.current;
+        } else {
+          // Micro-correction (lerp)
+          displayRemainingRef.current -= diff * 0.05;
+        }
+      } else {
+        // Paused -> precisely match
+        displayRemainingRef.current = authoritativeRemainingRef.current;
+      }
+
+      const p = Math.min(100, Math.max(0, ((totalDuration - displayRemainingRef.current) / totalDuration) * 100));
+      const off = CIRC - (CIRC * p) / 100;
+
+      if (ringGlowRef.current) ringGlowRef.current.style.strokeDashoffset = off;
+      if (ringCircleRef.current) ringCircleRef.current.style.strokeDashoffset = off;
+
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    rafRef.current = requestAnimationFrame(performance.now());
+
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [isActive, totalDuration]);
   
   const [quoteIndex, setQuoteIndex] = useState(() => getRandomQuote(-1));
   const [fadeState, setFadeState] = useState('in'); // 'in' | 'out'
@@ -94,14 +147,14 @@ const Timer = ({ minutes, seconds, progress, mode, isActive }) => {
           cx="120" cy="120" r={RADIUS}
         />
         <circle
+          ref={ringGlowRef}
           className="progress-ring-glow"
           cx="120" cy="120" r={RADIUS}
-          style={{ strokeDashoffset: offset }}
         />
         <circle
+          ref={ringCircleRef}
           className="progress-ring-circle"
           cx="120" cy="120" r={RADIUS}
-          style={{ strokeDashoffset: offset }}
         />
       </svg>
 

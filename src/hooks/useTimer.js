@@ -8,23 +8,7 @@ const getDurations = (d) => ({
     longBreak:  (d?.longBreakDuration  ?? 15) * 60 * 1000,
 });
 
-// Get today's date in local timezone (YYYY-MM-DD)
-const getLocalToday = () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
 
-// Prune stats older than 90 days to prevent localStorage bloat
-const pruneOldStats = (stats) => {
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 90);
-    const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`;
-    const pruned = {};
-    for (const [date, count] of Object.entries(stats)) {
-        if (date >= cutoffStr) pruned[date] = count;
-    }
-    return pruned;
-};
 
 const useTimer = (customDurations) => {
     const [mode, setMode] = useState('focus');
@@ -146,13 +130,7 @@ const useTimer = (customDurations) => {
                     const currentMode = modeRef.current;
 
                     if (currentMode === 'focus') {
-                        const today = getLocalToday();
-                        const statsStr = localStorage.getItem('zen-garden-stats');
-                        let stats = statsStr ? JSON.parse(statsStr) : {};
-                        stats[today] = (stats[today] || 0) + 1;
-                        stats = pruneOldStats(stats);
-                        localStorage.setItem('zen-garden-stats', JSON.stringify(stats));
-                        window.dispatchEvent(new Event('zen-garden-updated'));
+                        window.dispatchEvent(new Event('focus-session-completed'));
                     }
 
                     triggerNotification(currentMode, skipCountRef.current);
@@ -369,6 +347,7 @@ const useTimer = (customDurations) => {
         minutes, seconds, isActive, mode, progress,
         startTimer, pauseTimer, resetTimer, changeMode,
         isTransitioning, cycleCount,
+        totalDuration, remainingMs,
         // Focus-end prompt state & handlers
         focusEndState,
         handleChooseRest,

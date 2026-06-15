@@ -29,7 +29,7 @@
   stroke-linecap: round;
   stroke-dasharray: 691.5;
   stroke-dashoffset: 691.5;
-  transition: stroke-dashoffset 0.5s linear, stroke 1.5s ease;
+  transition: stroke 1.5s ease;
   opacity: 0.15;
   filter: blur(2px);
 }
@@ -40,7 +40,7 @@
   stroke-linecap: round;
   stroke-dasharray: 691.5;
   stroke-dashoffset: 691.5;
-  transition: stroke-dashoffset 0.5s linear, stroke 1.5s ease;
+  transition: stroke 1.5s ease;
 }
 
 /* Base colors matching the forest atmosphere vibes:
