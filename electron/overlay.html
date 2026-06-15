@@ -544,6 +544,11 @@
                 focusActions.style.display = 'none';
                 msgEl.textContent = '休息一下';
 
+                // Record wall-clock start time for sleep-proof guard
+                const restStartTime = Date.now();
+                const REST_DURATION_MS = 10000; // 10 seconds
+                const REST_GRACE_MS = 2000; // 2 second grace period
+
                 // Show random stretch tip
                 const stretchTip = document.getElementById('stretchTip');
                 const tip = stretchTips[Math.floor(Math.random() * stretchTips.length)];
@@ -551,19 +556,49 @@
                 stretchTip.style.display = 'block';
                 subEl.textContent = '';
 
-                // After 3 seconds, start breathing cycle
+                // After 3 seconds, start breathing cycle AND show backup dismiss button
                 setTimeout(() => {
                     stretchTip.style.display = 'none';
                     // Color transition to cool
                     line.style.stroke = 'rgba(210, 230, 255, 0.9)';
                     glow.style.stroke = 'rgba(180, 200, 255, 0.6)';
                     startBreatheCycle(19000, true);
+
+                    // Show backup dismiss button so user always has a manual escape
+                    document.getElementById('dismissBtn').classList.add('visible');
                 }, 3000);
 
+                // Primary auto-close timer
                 setTimeout(() => {
                     if (window.overlayAPI?.sendAction) window.overlayAPI.sendAction('rest-complete');
                     dismissOverlay();
-                }, 10000); // 10 second forced rest
+                }, REST_DURATION_MS);
+
+                // Wall-clock guard: check real elapsed time every second
+                // This catches cases where setTimeout was frozen during sleep
+                const wallClockGuard = setInterval(() => {
+                    const elapsed = Date.now() - restStartTime;
+                    if (elapsed >= REST_DURATION_MS + REST_GRACE_MS) {
+                        clearInterval(wallClockGuard);
+                        if (window.overlayAPI?.sendAction) window.overlayAPI.sendAction('rest-complete');
+                        dismissOverlay();
+                    }
+                }, 1000);
+
+                // visibilitychange guard: when page becomes visible after sleep,
+                // immediately check if we've exceeded the rest duration
+                const onVisibilityChange = () => {
+                    if (document.visibilityState === 'visible') {
+                        const elapsed = Date.now() - restStartTime;
+                        if (elapsed >= REST_DURATION_MS) {
+                            clearInterval(wallClockGuard);
+                            document.removeEventListener('visibilitychange', onVisibilityChange);
+                            if (window.overlayAPI?.sendAction) window.overlayAPI.sendAction('rest-complete');
+                            dismissOverlay();
+                        }
+                    }
+                };
+                document.addEventListener('visibilitychange', onVisibilityChange);
             };
 
             const focusInterval = setInterval(() => {
@@ -594,9 +629,21 @@
 
             startBreatheCycle();
 
+            const breakOverlayStart = Date.now();
             setTimeout(() => {
                 document.getElementById('dismissBtn').classList.add('visible');
             }, 3000);
+
+            // visibilitychange guard for break overlays too:
+            // if the user sleeps and wakes up, immediately show the dismiss button
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') {
+                    const elapsed = Date.now() - breakOverlayStart;
+                    if (elapsed >= 3000) {
+                        document.getElementById('dismissBtn').classList.add('visible');
+                    }
+                }
+            });
         }
 
         function dismissOverlay() {

@@ -185,13 +185,41 @@ const useTimer = (customDurations) => {
         };
     }, []);
 
-    // ── Focus-end prompt handlers ──
+    // Track when rest started for wall-clock guard
+    const restStartTimeRef = useRef(null);
 
     // User chose "開始休息" → show rest overlay
     const handleChooseRest = useCallback(() => {
         setFocusEndState('resting');
+        restStartTimeRef.current = Date.now();
         setSkipCount(0); // 選擇休息時重置跳過計數
     }, []);
+
+    // Rest overlay completed (10s elapsed) → transition to break
+    const handleRestComplete = useCallback(() => {
+        setFocusEndState('none');
+        restStartTimeRef.current = null;
+        autoTransition('focus');
+    }, [autoTransition]);
+
+    // visibilitychange guard for web fallback (non-Electron):
+    // If the page was hidden (sleep/minimize) and the rest duration has passed,
+    // auto-complete the rest when the page becomes visible again.
+    useEffect(() => {
+        const REST_DURATION_MS = 10000; // Must match RestOverlay's 10s countdown
+
+        const onVisibilityChange = () => {
+            if (document.visibilityState === 'visible' && focusEndState === 'resting') {
+                const startTime = restStartTimeRef.current;
+                if (startTime && (Date.now() - startTime) >= REST_DURATION_MS) {
+                    handleRestComplete();
+                }
+            }
+        };
+
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+    }, [focusEndState, handleRestComplete]);
 
     // User chose "再等一分鐘" → dismiss, re-prompt after 60s
     const handleChooseWait = useCallback(() => {
@@ -211,12 +239,6 @@ const useTimer = (customDurations) => {
             }
         }, 60 * 1000); // 1 minute
     }, []);
-
-    // Rest overlay completed (10s elapsed) → transition to break
-    const handleRestComplete = useCallback(() => {
-        setFocusEndState('none');
-        autoTransition('focus');
-    }, [autoTransition]);
 
     // User manually starts next focus after break is done
     const handleBreakDoneStart = useCallback(() => {

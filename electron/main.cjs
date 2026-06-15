@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, screen, Tray, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, Tray, Menu, powerMonitor } = require('electron');
 const path = require('path');
 
 // 判斷是否為開發模式
@@ -193,6 +193,21 @@ app.whenReady().then(() => {
 
     createWindow();
     createTray();
+
+    // 監聽系統從休眠/睡眠恢復事件
+    // 如果恢復時 overlay 還在，自動關閉並通知 renderer
+    powerMonitor.on('resume', () => {
+        console.log('[PowerMonitor] System resumed from sleep/hibernate');
+        if (overlayWindow) {
+            console.log('[PowerMonitor] Closing lingering overlay window');
+            // Notify main renderer that rest is complete before closing
+            if (mainWindow) {
+                mainWindow.webContents.send('overlay-action', 'rest-complete');
+            }
+            overlayWindow.close();
+            overlayWindow = null;
+        }
+    });
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) {
