@@ -6,6 +6,7 @@ const DEFAULTS = {
   longBreakDuration:  15,
   notificationType:  'chime',
   ambientSound:      'none',
+  taskName:          '',
 };
 
 const STORAGE_KEY = 'serene-settings';

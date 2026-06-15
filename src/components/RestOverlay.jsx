@@ -28,7 +28,6 @@ const RestOverlay = ({ visible, onComplete }) => {
         setSecondsLeft(prev => {
           if (prev <= 1) {
             clearInterval(intervalRef.current);
-            onComplete();
             return 0;
           }
           return prev - 1;
@@ -40,7 +39,14 @@ const RestOverlay = ({ visible, onComplete }) => {
     }
 
     return () => clearInterval(intervalRef.current);
-  }, [visible, onComplete]);
+  }, [visible]);
+
+  // Trigger onComplete when countdown reaches 0 (outside of setState updater)
+  useEffect(() => {
+    if (visible && secondsLeft === 0) {
+      onComplete();
+    }
+  }, [visible, secondsLeft, onComplete]);
 
   if (!visible) return null;
 

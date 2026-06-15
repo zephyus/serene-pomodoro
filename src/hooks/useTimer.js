@@ -18,7 +18,7 @@ const getLocalToday = () => {
 const pruneOldStats = (stats) => {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 90);
-    const cutoffStr = cutoff.toISOString().split('T')[0];
+    const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`;
     const pruned = {};
     for (const [date, count] of Object.entries(stats)) {
         if (date >= cutoffStr) pruned[date] = count;
